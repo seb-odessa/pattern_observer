@@ -1,0 +1,6 @@
+[package]
+name = "pattern_observer"
+version = "0.1.0"
+authors = ["seb-odessa <seb@ukr.net>"]
+
+[dependencies]
