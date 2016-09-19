@@ -10,9 +10,32 @@ mod observer {
     }
 }
 
-mod weather {
+mod data {
     extern crate rand;
     use self::rand::distributions::{IndependentSample, Range};
+    pub struct DataGen {
+        base  : i32,
+        rgen  : rand::ThreadRng,
+        rang  : rand::distributions::Range<i32>,
+    }
+    impl DataGen {
+        pub fn new(base : i32, delta : i32) -> Self {
+            let rgen = rand::thread_rng();
+            let rang = Range::new(0, delta);
+            DataGen{ base : base, rgen : rgen, rang : rang }
+        }
+    }
+    impl Iterator for DataGen {
+        type Item = i32;
+        fn next(&mut self) -> Option<i32> {
+            let value = self.base + self.rang.ind_sample(&mut self.rgen);
+            return Some(value);
+        }
+    }
+}
+
+mod weather {
+
 
     pub type Temperature = i32;
     pub type Humidity = i32;
@@ -34,26 +57,7 @@ mod weather {
         }
     }
 
-    struct DataGen {
-        base  : i32,
-        rgen  : rand::ThreadRng,
-        rang  : rand::distributions::Range<i32>,
-    }
-    impl DataGen {
-        fn new(base : i32, delta : i32) -> Self {
-            let rgen = rand::thread_rng();
-            let rang = Range::new(0, delta);
-            DataGen{ base : base, rgen : rgen, rang : rang }
-        }
-    }
-    impl Iterator for DataGen {
-        type Item = i32;
-        fn next(&mut self) -> Option<i32> {
-            let value = self.base + self.rang.ind_sample(&mut self.rgen);
-            return Some(value);
-        }
-    }
-
+    use data::DataGen;
     use observer::{Observer, Observable};
     use std::collections::HashMap;
 
