@@ -11,6 +11,8 @@ mod observer {
 }
 
 mod weather {
+    extern crate rand;
+    use self::rand::distributions::{IndependentSample, Range};
 
     pub type Temperature = i32;
     pub type Humidity = i32;
@@ -32,34 +34,58 @@ mod weather {
         }
     }
 
-    struct DataGen<T> {
-        base : T
+    struct DataGen {
+        base  : i32,
+        rgen  : rand::ThreadRng,
+        rang  : rand::distributions::Range<i32>,
+    }
+    impl DataGen {
+        fn new(base : i32, delta : i32) -> Self {
+            let rgen = rand::thread_rng();
+            let rang = Range::new(0, delta);
+            DataGen{ base : base, rgen : rgen, rang : rang }
+        }
+    }
+    impl Iterator for DataGen {
+        type Item = i32;
+        fn next(&mut self) -> Option<i32> {
+            let value = self.base + self.rang.ind_sample(&mut self.rgen);
+            return Some(value);
+        }
     }
 
     use observer::{Observer, Observable};
     use std::collections::HashMap;
 
     pub struct WeatherData {
-        observers: HashMap<String, Box<Observer<WeatherRecord>>>,
+        temperature : DataGen,
+        humidity    : DataGen,
+        pressure    : DataGen,
+        observers   : HashMap<String, Box<Observer<WeatherRecord>>>,
     }
     impl WeatherData {
         pub fn new() -> Self {
-            WeatherData { observers: HashMap::new() }
+            WeatherData {
+                temperature : DataGen::new(10, 10),
+                humidity    : DataGen::new(40, 60),
+                pressure    : DataGen::new(700, 90),
+                observers: HashMap::new()
+            }
         }
-        fn get_temperature(&self) -> Temperature {
-            0
+        fn get_temperature(&mut self) -> Temperature {
+            self.temperature.next().unwrap()
         }
-        fn get_humidity(&self) -> Humidity {
-            1
+        fn get_humidity(&mut self) -> Humidity {
+            self.humidity.next().unwrap()
         }
-        fn get_pressure(&self) -> Pressure {
-            2
+        fn get_pressure(&mut self) -> Pressure {
+            self.pressure.next().unwrap()
         }
         pub fn measurements_changed(&mut self) {
             let record = WeatherRecord {
-                temperature: self.get_temperature(),
-                humidity: self.get_humidity(),
-                pressure: self.get_pressure(),
+                temperature : self.get_temperature(),
+                humidity    : self.get_humidity(),
+                pressure    : self.get_pressure(),
             };
             self.notify(record);
         }
@@ -74,8 +100,7 @@ mod weather {
             self.observers.remove(&name);
         }
         fn notify(&mut self, record: WeatherRecord) {
-            for (name, observer) in self.observers.iter_mut() {
-                println!("Notify '{}'", name);
+            for (_, observer) in self.observers.iter_mut() {
                 observer.update(&record);
             }
         }
@@ -154,7 +179,7 @@ mod widget {
             }
         }
         //
-        fn statistic<T : Copy+Ord+AddAssign+Div>(list :&LinkedList<T>) -> (T, T, T) {
+        fn statistic<T : Copy+Ord+AddAssign>(list :&LinkedList<T>) -> (T, T, T) {
             let first = list.front().unwrap();
             let mut min : T = first.clone();
             let mut max : T = first.clone();
@@ -208,6 +233,9 @@ fn main() {
     let mut registred = Vec::new();
     registred.push(weather.register(Box::new(WidgetCurrent::new("Current Widget"))));
     registred.push(weather.register(Box::new(WidgetStatistic::new("Statistic Widget"))));
-    weather.measurements_changed();
+
+    for _ in 0..10 {
+        weather.measurements_changed();
+    }
 
 }
