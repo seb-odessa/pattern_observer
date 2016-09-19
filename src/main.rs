@@ -3,7 +3,7 @@ mod observer {
         fn update(&mut self, value: &T);
         fn name(&self) -> String;
     }
-    pub trait Subject<T> {
+    pub trait Observable<T> {
         fn register(&mut self, observer: Box<Observer<T>>) -> String;
         fn remove(&mut self, name: String);
         fn notify(&mut self, record: T);
@@ -11,23 +11,28 @@ mod observer {
 }
 
 mod weather {
+
+    pub type Temperature = i32;
+    pub type Humidity = i32;
+    pub type Pressure = i32;
+
     #[derive(Copy, Clone)]
     pub struct WeatherRecord {
-        pub temperature: i32,
-        pub humidity: i32,
-        pub pressure: i32,
+        pub temperature: Temperature,
+        pub humidity: Humidity,
+        pub pressure: Pressure,
     }
     impl WeatherRecord {
         pub fn new() -> WeatherRecord {
             WeatherRecord {
-                temperature: 0,
-                humidity: 0,
-                pressure: 0,
+                temperature : 0,
+                humidity    : 0,
+                pressure    : 0,
             }
         }
     }
 
-    use observer::{Observer, Subject};
+    use observer::{Observer, Observable};
     use std::collections::HashMap;
 
     pub struct WeatherData {
@@ -37,13 +42,13 @@ mod weather {
         pub fn new() -> Self {
             WeatherData { observers: HashMap::new() }
         }
-        fn get_temperature(&self) -> i32 {
+        fn get_temperature(&self) -> Temperature {
             0
         }
-        fn get_humidity(&self) -> i32 {
+        fn get_humidity(&self) -> Humidity {
             1
         }
-        fn get_pressure(&self) -> i32 {
+        fn get_pressure(&self) -> Pressure {
             2
         }
         pub fn measurements_changed(&mut self) {
@@ -55,7 +60,7 @@ mod weather {
             self.notify(record);
         }
     }
-    impl Subject<WeatherRecord> for WeatherData {
+    impl Observable<WeatherRecord> for WeatherData {
         fn register(&mut self, observer: Box<Observer<WeatherRecord>>) -> String {
             let name = observer.name();
             self.observers.insert(name.clone(), observer);
@@ -65,7 +70,8 @@ mod weather {
             self.observers.remove(&name);
         }
         fn notify(&mut self, record: WeatherRecord) {
-            for (_, observer) in self.observers.iter_mut() {
+            for (name, observer) in self.observers.iter_mut() {
+                println!("Notify '{}'", name);
                 observer.update(&record);
             }
         }
@@ -73,8 +79,7 @@ mod weather {
 }
 
 mod widget {
-
-    use weather::WeatherRecord;
+    use weather::{WeatherRecord, Temperature, Humidity, Pressure};
     use observer::Observer;
 
     pub trait DisplayWidget {
@@ -105,7 +110,7 @@ mod widget {
     impl DisplayWidget for WidgetCurrent {
         fn display(&self) {
             println!("{}", &self.name);
-            println!("Temp: {}  Humid: {} Press: {}",
+            println!("\tTemperature\t: {}\n\tHumid\t\t: {}\n\tPress\t\t: {}",
                      &self.current.temperature,
                      &self.current.humidity,
                      &self.current.pressure);
@@ -114,27 +119,57 @@ mod widget {
 
     /// **************************************************
 
+    use std::collections::LinkedList;
+    use std::ops::{AddAssign,Div};
     pub struct WidgetStatistic {
-        name: String,
-        history_temp: Vec<i32>,
-        history_humid: Vec<i32>,
-        history_press: Vec<i32>,
+        name            : String,
+        history_length  : usize,
+        history_temp    : LinkedList<Temperature>,
+        history_humid   : LinkedList<Humidity>,
+        history_press   : LinkedList<Pressure>,
     }
     impl WidgetStatistic {
         pub fn new<Name: Into<String>>(name: Name) -> WidgetStatistic {
             WidgetStatistic {
-                name: name.into(),
-                history_temp: Vec::new(),
-                history_humid: Vec::new(),
-                history_press: Vec::new(),
+                name            : name.into(),
+                history_length  : 10,
+                history_temp    : LinkedList::new(),
+                history_humid   : LinkedList::new(),
+                history_press   : LinkedList::new(),
             }
+        }
+        fn strip_list(&mut self) {
+            if self.history_temp.len() >= self.history_length {
+                self.history_temp.pop_front();
+            }
+            if self.history_humid.len() >= self.history_length {
+                self.history_humid.pop_front();
+            }
+            if self.history_press.len() >= self.history_length {
+                self.history_press.pop_front();
+            }
+        }
+        //
+        fn statistic<T : Copy+Ord+AddAssign+Div>(list :&LinkedList<T>) -> (T, T, T) {
+            let first = list.front().unwrap();
+            let mut min : T = first.clone();
+            let mut max : T = first.clone();
+            let mut sum : T = first.clone();
+            for record in list.into_iter().skip(1) {
+                let curr : T = record.clone();
+                if min > curr { min = curr }
+                if max < curr { max = curr }
+                sum +=  curr;
+            }
+            return (min, max, sum);
         }
     }
     impl Observer<WeatherRecord> for WidgetStatistic {
         fn update(&mut self, record: &WeatherRecord) {
-            self.history_temp.push(record.temperature);
-            self.history_humid.push(record.humidity);
-            self.history_press.push(record.pressure);
+            self.history_temp.push_back(record.temperature);
+            self.history_humid.push_back(record.humidity);
+            self.history_press.push_back(record.pressure);
+            self.strip_list();
             self.display();
         }
         fn name(&self) -> String {
@@ -144,14 +179,18 @@ mod widget {
     impl DisplayWidget for WidgetStatistic {
         fn display(&self) {
             println!("{}", &self.name);
-            println!("Minimal Temp: {} Minimal Humid: {} Minimal Press: {}",
-                     &self.history_temp.iter().min().unwrap(),
-                     &self.history_humid.iter().min().unwrap(),
-                     &self.history_press.iter().min().unwrap());
-            println!("Maximal Temp: {} Minimal Humid: {} Minimal Press: {}",
-                     &self.history_temp.iter().max().unwrap(),
-                     &self.history_humid.iter().max().unwrap(),
-                     &self.history_press.iter().max().unwrap());
+
+            let (min,max,sum) = WidgetStatistic::statistic(&self.history_temp);
+            let avg : f32 = sum as f32 / self.history_temp.len() as f32;
+            println!("\tTemperature (min/max/avg)\t: {} / {} / {}", min, max, avg);
+
+            let (min,max,sum) = WidgetStatistic::statistic(&self.history_humid);
+            let avg : f32 = sum as f32 / self.history_humid.len() as f32;
+            println!("\tHumidity (min/max/avg) \t\t: {} / {} / {}", min, max, avg);
+
+            let (min,max,sum) = WidgetStatistic::statistic(&self.history_press);
+            let avg : f32 = sum as f32 / self.history_humid.len() as f32;
+            println!("\tPressure (min/max/avg) \t\t: {} / {} / {}", min, max, avg);
         }
     }
 
@@ -159,7 +198,7 @@ mod widget {
 
 use widget::*;
 use weather::WeatherData;
-use observer::Subject;
+use observer::Observable;
 fn main() {
 
     let mut weather = WeatherData::new();
