@@ -32,6 +32,10 @@ mod weather {
         }
     }
 
+    struct DataGen<T> {
+        base : T
+    }
+
     use observer::{Observer, Observable};
     use std::collections::HashMap;
 
@@ -86,6 +90,7 @@ mod widget {
         fn display(&self);
     }
 
+    /// ********************* WidgetCurrent *****************************
     pub struct WidgetCurrent {
         name: String,
         current: WeatherRecord,
@@ -117,10 +122,9 @@ mod widget {
         }
     }
 
-    /// **************************************************
-
+    /// ********************* WidgetStatistic *****************************
     use std::collections::LinkedList;
-    use std::ops::{AddAssign,Div};
+    use std::ops::{AddAssign};
     pub struct WidgetStatistic {
         name            : String,
         history_length  : usize,
@@ -193,7 +197,6 @@ mod widget {
             println!("\tPressure (min/max/avg) \t\t: {} / {} / {}", min, max, avg);
         }
     }
-
 }
 
 use widget::*;
