@@ -14,15 +14,19 @@ mod data {
     extern crate rand;
     use self::rand::distributions::{IndependentSample, Range};
     pub struct DataGen {
-        base  : i32,
-        rgen  : rand::ThreadRng,
-        rang  : rand::distributions::Range<i32>,
+        base: i32,
+        rgen: rand::ThreadRng,
+        rang: rand::distributions::Range<i32>,
     }
     impl DataGen {
-        pub fn new(base : i32, delta : i32) -> Self {
+        pub fn new(base: i32, delta: i32) -> Self {
             let rgen = rand::thread_rng();
             let rang = Range::new(0, delta);
-            DataGen{ base : base, rgen : rgen, rang : rang }
+            DataGen {
+                base: base,
+                rgen: rgen,
+                rang: rang,
+            }
         }
     }
     impl Iterator for DataGen {
@@ -35,8 +39,6 @@ mod data {
 }
 
 mod weather {
-
-
     pub type Temperature = i32;
     pub type Humidity = i32;
     pub type Pressure = i32;
@@ -50,9 +52,9 @@ mod weather {
     impl WeatherRecord {
         pub fn new() -> WeatherRecord {
             WeatherRecord {
-                temperature : 0,
-                humidity    : 0,
-                pressure    : 0,
+                temperature: 0,
+                humidity: 0,
+                pressure: 0,
             }
         }
     }
@@ -62,18 +64,18 @@ mod weather {
     use std::collections::HashMap;
 
     pub struct WeatherData {
-        temperature : DataGen,
-        humidity    : DataGen,
-        pressure    : DataGen,
-        observers   : HashMap<String, Box<Observer<WeatherRecord>>>,
+        temperature: DataGen,
+        humidity: DataGen,
+        pressure: DataGen,
+        observers: HashMap<String, Box<Observer<WeatherRecord>>>,
     }
     impl WeatherData {
         pub fn new() -> Self {
             WeatherData {
-                temperature : DataGen::new(10, 10),
-                humidity    : DataGen::new(40, 60),
-                pressure    : DataGen::new(700, 90),
-                observers: HashMap::new()
+                temperature: DataGen::new(10, 10),
+                humidity: DataGen::new(40, 60),
+                pressure: DataGen::new(700, 90),
+                observers: HashMap::new(),
             }
         }
         fn get_temperature(&mut self) -> Temperature {
@@ -87,9 +89,9 @@ mod weather {
         }
         pub fn measurements_changed(&mut self) {
             let record = WeatherRecord {
-                temperature : self.get_temperature(),
-                humidity    : self.get_humidity(),
-                pressure    : self.get_pressure(),
+                temperature: self.get_temperature(),
+                humidity: self.get_humidity(),
+                pressure: self.get_pressure(),
             };
             self.notify(record);
         }
@@ -153,22 +155,22 @@ mod widget {
 
     /// ********************* WidgetStatistic *****************************
     use std::collections::LinkedList;
-    use std::ops::{AddAssign};
+    use std::ops::AddAssign;
     pub struct WidgetStatistic {
-        name            : String,
-        history_length  : usize,
-        history_temp    : LinkedList<Temperature>,
-        history_humid   : LinkedList<Humidity>,
-        history_press   : LinkedList<Pressure>,
+        name: String,
+        history_length: usize,
+        history_temp: LinkedList<Temperature>,
+        history_humid: LinkedList<Humidity>,
+        history_press: LinkedList<Pressure>,
     }
     impl WidgetStatistic {
         pub fn new<Name: Into<String>>(name: Name) -> WidgetStatistic {
             WidgetStatistic {
-                name            : name.into(),
-                history_length  : 10,
-                history_temp    : LinkedList::new(),
-                history_humid   : LinkedList::new(),
-                history_press   : LinkedList::new(),
+                name: name.into(),
+                history_length: 10,
+                history_temp: LinkedList::new(),
+                history_humid: LinkedList::new(),
+                history_press: LinkedList::new(),
             }
         }
         fn strip_list(&mut self) {
@@ -183,16 +185,20 @@ mod widget {
             }
         }
         //
-        fn statistic<T : Copy+Ord+AddAssign>(list :&LinkedList<T>) -> (T, T, T) {
+        fn statistic<T: Copy + Ord + AddAssign>(list: &LinkedList<T>) -> (T, T, T) {
             let first = list.front().unwrap();
-            let mut min : T = first.clone();
-            let mut max : T = first.clone();
-            let mut sum : T = first.clone();
+            let mut min: T = first.clone();
+            let mut max: T = first.clone();
+            let mut sum: T = first.clone();
             for record in list.into_iter().skip(1) {
-                let curr : T = record.clone();
-                if min > curr { min = curr }
-                if max < curr { max = curr }
-                sum +=  curr;
+                let curr: T = record.clone();
+                if min > curr {
+                    min = curr
+                }
+                if max < curr {
+                    max = curr
+                }
+                sum += curr;
             }
             return (min, max, sum);
         }
@@ -213,16 +219,16 @@ mod widget {
         fn display(&self) {
             println!("{}", &self.name);
 
-            let (min,max,sum) = WidgetStatistic::statistic(&self.history_temp);
-            let avg : f32 = sum as f32 / self.history_temp.len() as f32;
+            let (min, max, sum) = WidgetStatistic::statistic(&self.history_temp);
+            let avg: f32 = sum as f32 / self.history_temp.len() as f32;
             println!("\tTemperature (min/max/avg)\t: {} / {} / {}", min, max, avg);
 
-            let (min,max,sum) = WidgetStatistic::statistic(&self.history_humid);
-            let avg : f32 = sum as f32 / self.history_humid.len() as f32;
+            let (min, max, sum) = WidgetStatistic::statistic(&self.history_humid);
+            let avg: f32 = sum as f32 / self.history_humid.len() as f32;
             println!("\tHumidity (min/max/avg) \t\t: {} / {} / {}", min, max, avg);
 
-            let (min,max,sum) = WidgetStatistic::statistic(&self.history_press);
-            let avg : f32 = sum as f32 / self.history_humid.len() as f32;
+            let (min, max, sum) = WidgetStatistic::statistic(&self.history_press);
+            let avg: f32 = sum as f32 / self.history_humid.len() as f32;
             println!("\tPressure (min/max/avg) \t\t: {} / {} / {}", min, max, avg);
         }
     }
